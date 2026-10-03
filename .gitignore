@@ -1,0 +1,12 @@
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.log
+.vs/
+.idea/
+.vscode/
+
+# User-specific AppData config (not source code)
+AppData/

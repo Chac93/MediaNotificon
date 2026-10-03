@@ -12,7 +12,7 @@ A distraction-free Windows utility that delivers beautiful Catppuccin Mocha song
 [![Runtime](https://img.shields.io/badge/.NET-6.0--windows10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Theme](https://img.shields.io/badge/Theme-Catppuccin%20Mocha-cba6f7?logo=catppuccin&logoColor=white)](https://github.com/catppuccin/catppuccin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/username/medianotif?style=social)](https://github.com/username/medianotif)
+[![GitHub Stars](https://img.shields.io/github/stars/Chac93/MediaNotificon?style=social)](https://github.com/Chac93/MediaNotificon)
 
 <img src="docs/media/demo.jpg" width="760" alt="MediaNotif in action">
 
@@ -77,7 +77,7 @@ Make sure you have the [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet
 
 ```powershell
 # Clone the repository
-git clone https://github.com/username/medianotif.git
+git clone https://github.com/Chac93/MediaNotificon.git
 cd medianotif
 
 # Launch in normal listening mode
@@ -169,6 +169,6 @@ Contributions, bug reports, and feature suggestions are warmly welcomed!
 
 **If you like MediaNotif, please consider leaving a ⭐ on GitHub!**
 
-[Report a Bug](https://github.com/username/medianotif/issues) · [Request Feature](https://github.com/username/medianotif/issues)
+[Report a Bug](https://github.com/Chac93/MediaNotificon/issues) · [Request Feature](https://github.com/Chac93/MediaNotificon/issues)
 
 </div>
