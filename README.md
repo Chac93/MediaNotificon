@@ -12,7 +12,7 @@ A distraction-free Windows utility that delivers beautiful Catppuccin Mocha song
 [![Runtime](https://img.shields.io/badge/.NET-6.0--windows10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Theme](https://img.shields.io/badge/Theme-Catppuccin%20Mocha-cba6f7?logo=catppuccin&logoColor=white)](https://github.com/catppuccin/catppuccin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/Chac93/MediaNotificon?style=social)](https://github.com/Chac93/MediaNotificon)
+[![GitHub Stars](https://img.shields.io/github/stars/Chac93/MediaNotificon?style=social&v=1)](https://github.com/Chac93/MediaNotificon)
 
 <img src="docs/media/demo.jpg" width="760" alt="MediaNotif">
 
