@@ -14,7 +14,7 @@ A distraction-free Windows utility that delivers beautiful Catppuccin Mocha song
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/Chac93/MediaNotificon?style=social)](https://github.com/Chac93/MediaNotificon)
 
-<img src="docs/media/demo.jpg" width="760" alt="MediaNotif in action">
+<img src="docs/media/demo.jpg" width="760" alt="MediaNotif">
 
 </div>
 
