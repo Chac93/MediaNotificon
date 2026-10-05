@@ -78,7 +78,7 @@ Make sure you have the [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet
 ```powershell
 # Clone the repository
 git clone https://github.com/Chac93/MediaNotificon.git
-cd medianotif
+cd MediaNotificon
 
 # Launch in normal listening mode
 dotnet run
