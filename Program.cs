@@ -569,20 +569,30 @@ namespace MediaNotif
                     ? new SolidColorBrush(Color.FromRgb(243, 139, 168))
                     : new SolidColorBrush(Color.FromRgb(137, 180, 250)));
 
+            // Outer wrapper carries the shadow effect with padding so the blur
+            // has room to render — this prevents the dark-corner artefact that
+            // occurs when DropShadowEffect is placed directly on a Border with
+            // CornerRadius inside an AllowsTransparency window.
+            var shadowWrapper = new Border
+            {
+                Background = Brushes.Transparent,
+                Padding = new Thickness(16),
+                Effect = new DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 24,
+                    ShadowDepth = 4,
+                    Opacity = 0.80
+                }
+            };
+
             var rootBorder = new Border
             {
                 Background = bgBrush,
                 BorderBrush = borderBrush,
                 BorderThickness = new Thickness(isClassic ? 1.8 : 1.2),
                 CornerRadius = new CornerRadius(_isCompact ? 10 : (isClassic ? 12 : 14)),
-                Cursor = Cursors.Hand,
-                Effect = new DropShadowEffect
-                {
-                    Color = Colors.Black,
-                    BlurRadius = 24,
-                    ShadowDepth = 6,
-                    Opacity = 0.85
-                }
+                Cursor = Cursors.Hand
             };
 
             var rootGrid = new Grid();
@@ -726,7 +736,8 @@ namespace MediaNotif
 
             contentBorder.Child = grid;
             rootBorder.Child = rootGrid;
-            Content = rootBorder;
+            shadowWrapper.Child = rootBorder;
+            Content = shadowWrapper;
 
             // Click to dismiss
             rootBorder.MouseLeftButtonDown += (s, e) => CloseWithAnimation();
