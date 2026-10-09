@@ -31,15 +31,16 @@ Inspired by the minimalism of **Dunst** on Linux and styled with the **Catppucci
 ## ✨ Features
 
 - 🎨 **Multi-Theme Engine (Classic Dunst & Modern Aura)** — Switch seamlessly between **Aura Neo** (neon gradient top bar & glow), **Classic Dunst** (original Linux Dunst blue border with bold `NOW PLAYING` tag), **Nordic Frost** (cool arctic cyan), and **Midnight AMOLED** (pitch black with vivid accents).
-- 🎵 **Universal Media Support** — Works out-of-the-box with **YouTube Music** (Chrome, Edge, Brave, Firefox, Zen, Opera, PWA, or Desktop client), **Spotify**, and any Windows SMTC-compatible media player.
-- 🎧 **Smart Source Filtering** — Isolate notifications to your favorite music app (e.g., only YouTube Music or Spotify) to ignore background browser video playbacks.
+- 🎵 **Universal Media Support** — Works out-of-the-box with **Music Assistant** (`io.music-assistant.companion`), **YouTube Music** (Chrome, Edge, Brave, Firefox, Zen, Opera, PWA, or Desktop client), **Spotify**, and any Windows SMTC-compatible media player.
+- 🎧 **Multi-Source Filtering** — Select multiple concurrent audio sources simultaneously (e.g. YouTube Music + Music Assistant) or toggle individual apps to ignore background browser video playback.
+- 🏷️ **Dynamic Source Brand Logos** — Displays high-resolution vector logos and badges for the actively playing audio source directly on album art and header tags.
 - 🖼️ **In-Memory Cover Art Pipeline** — Decodes album artwork 100% in RAM with zero disk I/O or temporary file locking, backed by an asynchronous retry mechanism for late-arriving metadata.
 - 🖥️ **Multi-Monitor & Topmost Precision** — Place notifications in any of 5 screen positions (*Top-Right, Top-Left, Bottom-Right, Bottom-Left, Top-Center*) with native `SetWindowPos(HWND_TOPMOST)` rendering over borderless and fullscreen windows.
 - 🔕 **Do Not Disturb Mode** — Silence popups on demand in 1 click from the tray menu or settings panel.
 - 📱 **Ultra-Compact Mode** — A minimal ~42px single-line layout (`Title • Artist`) crafted specifically for gamers and compact desktop real estate.
 - 🪶 **Zero Focus Stealing** — Built with native Win32 `WS_EX_NOACTIVATE` and `WS_EX_TOOLWINDOW` flags: never interrupts keystrokes, games, or shows up in `Alt + Tab`.
 - 🌐 **Instant Bilingual UI** — Switch between English and French with a single click across all menus, tooltips, and settings.
-- ⚙️ **Modern Fluent Settings Panel** — Live interactive preview, real-time theme selector, custom durations (1.5s–8.0s), customizable width (340px–480px), and optional Windows startup on user login without administrator privileges.
+- ⚙️ **Modern Fluent Settings Panel** — Live interactive preview, real-time theme selector, multi-source checklist, custom durations (1.5s–8.0s), customizable width (340px–480px), and optional Windows startup on user login without administrator privileges.
 
 ---
 
@@ -122,7 +123,8 @@ Custom settings and runtime logs are saved in your local Windows user profile:
 | `DisplayDurationSeconds` | `double` | `3.5` | Display duration in seconds before fade-out (`1.5` to `8.0`) |
 | `NotificationWidth` | `double` | `420.0` | Width of notification card in pixels (`340` to `480`) |
 | `CompactMode` | `boolean` | `false` | Enable ultra-slim single line layout (~42px height) |
-| `MediaSourceFilter` | `string` | `"All"` | Filtered audio source (`All`, `YouTubeMusic`, `Spotify`, `Zen`, `Chrome`, `Firefox`, `Edge`, `Brave`) |
+| `MediaSources` | `string[]` | `["All"]` | List of allowed sources: `All`, `YouTubeMusic`, `MusicAssistant`, `Spotify`, `Zen`, `Chrome`, `Firefox`, `Edge`, `Brave` |
+| `MediaSourceFilter` | `string` | `"All"` | Legacy single-string or comma-separated filter |
 | `DoNotDisturb` | `boolean` | `false` | Mute all visual notifications |
 | `Language` | `string` | `"fr"` | UI language (`"fr"` for French, `"en"` for English) |
 | `StartWithWindows`| `boolean` | `false` | Launch silently on user login (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) |

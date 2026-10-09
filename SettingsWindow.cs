@@ -15,7 +15,7 @@ namespace MediaNotif
     public class SettingsWindow : Window
     {
         private string _selectedPosition;
-        private string _selectedSource;
+        private readonly System.Collections.Generic.HashSet<string> _selectedSources = new(StringComparer.OrdinalIgnoreCase);
         private string _selectedLanguage;
         private string _selectedTheme;
         private double _selectedDuration;
@@ -81,7 +81,18 @@ namespace MediaNotif
         public SettingsWindow()
         {
             _selectedPosition = SettingsManager.Current.Position;
-            _selectedSource = SettingsManager.Current.MediaSourceFilter;
+            _selectedSources.Clear();
+            if (SettingsManager.Current.MediaSources != null && SettingsManager.Current.MediaSources.Count > 0)
+            {
+                foreach (var s in SettingsManager.Current.MediaSources)
+                {
+                    _selectedSources.Add(s);
+                }
+            }
+            else
+            {
+                _selectedSources.Add("All");
+            }
             _selectedLanguage = SettingsManager.Current.Language;
             _selectedTheme = SettingsManager.Current.Theme;
             _selectedDuration = SettingsManager.Current.DisplayDurationSeconds;
@@ -460,16 +471,19 @@ namespace MediaNotif
             sourceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             sourceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
             sourceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Row 0: All
             sourceGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
-            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Row 2: YouTube Music & Music Assistant
             sourceGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
-            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Row 4: Spotify & Zen
             sourceGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
-            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Row 6: Chrome & Firefox
+            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
+            sourceGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Row 8: Edge & Brave
 
             var srcAll = CreateSourceButton("All", Loc.AllSources);
             var srcYtm = CreateSourceButton("YouTubeMusic", "🎵  YouTube Music");
+            var srcMass = CreateSourceButton("MusicAssistant", Loc.MusicAssistant);
             var srcSpotify = CreateSourceButton("Spotify", "🟢  Spotify");
             var srcZen = CreateSourceButton("Zen", "🌀  Zen Browser");
             var srcChrome = CreateSourceButton("Chrome", "🔴  Google Chrome");
@@ -477,17 +491,19 @@ namespace MediaNotif
             var srcEdge = CreateSourceButton("Edge", "🌊  Microsoft Edge");
             var srcBrave = CreateSourceButton("Brave", "🦁  Brave Browser");
 
-            Grid.SetRow(srcAll, 0); Grid.SetColumn(srcAll, 0);
-            Grid.SetRow(srcYtm, 0); Grid.SetColumn(srcYtm, 2);
-            Grid.SetRow(srcSpotify, 2); Grid.SetColumn(srcSpotify, 0);
-            Grid.SetRow(srcZen, 2); Grid.SetColumn(srcZen, 2);
-            Grid.SetRow(srcChrome, 4); Grid.SetColumn(srcChrome, 0);
-            Grid.SetRow(srcFirefox, 4); Grid.SetColumn(srcFirefox, 2);
-            Grid.SetRow(srcEdge, 6); Grid.SetColumn(srcEdge, 0);
-            Grid.SetRow(srcBrave, 6); Grid.SetColumn(srcBrave, 2);
+            Grid.SetRow(srcAll, 0); Grid.SetColumn(srcAll, 0); Grid.SetColumnSpan(srcAll, 3);
+            Grid.SetRow(srcYtm, 2); Grid.SetColumn(srcYtm, 0);
+            Grid.SetRow(srcMass, 2); Grid.SetColumn(srcMass, 2);
+            Grid.SetRow(srcSpotify, 4); Grid.SetColumn(srcSpotify, 0);
+            Grid.SetRow(srcZen, 4); Grid.SetColumn(srcZen, 2);
+            Grid.SetRow(srcChrome, 6); Grid.SetColumn(srcChrome, 0);
+            Grid.SetRow(srcFirefox, 6); Grid.SetColumn(srcFirefox, 2);
+            Grid.SetRow(srcEdge, 8); Grid.SetColumn(srcEdge, 0);
+            Grid.SetRow(srcBrave, 8); Grid.SetColumn(srcBrave, 2);
 
             sourceGrid.Children.Add(srcAll);
             sourceGrid.Children.Add(srcYtm);
+            sourceGrid.Children.Add(srcMass);
             sourceGrid.Children.Add(srcSpotify);
             sourceGrid.Children.Add(srcZen);
             sourceGrid.Children.Add(srcChrome);
@@ -496,7 +512,7 @@ namespace MediaNotif
             sourceGrid.Children.Add(srcBrave);
 
             bodyStack.Children.Add(sourceGrid);
-            HighlightSelectedSource();
+            HighlightSelectedSources();
 
             // --- SECTION 5: DIMENSIONS & DURÉE ---
             var dimHeader = CreateHeaderSection(Loc.DimensionsTitle, Loc.DimensionsSubtitle, out _dimHeaderTitle, out _dimHeaderSub);
@@ -872,6 +888,8 @@ namespace MediaNotif
             Grid.SetRow(contentBorder, 1);
             rootGrid.Children.Add(contentBorder);
 
+            string previewSource = System.Linq.Enumerable.FirstOrDefault(_selectedSources, s => !s.Equals("All", StringComparison.OrdinalIgnoreCase)) ?? "MusicAssistant";
+
             if (_selectedCompact)
             {
                 // Compact mode preview (slim single-line)
@@ -881,13 +899,18 @@ namespace MediaNotif
                 prevGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 prevGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+                var prevCoverGrid = new Grid
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0)
+                };
+
                 var prevCover = new Border
                 {
                     Width = 26,
                     Height = 26,
                     CornerRadius = new CornerRadius(5),
                     Background = new SolidColorBrush(Color.FromRgb(49, 50, 68)),
-                    Margin = new Thickness(0, 0, 10, 0),
                     VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
@@ -898,10 +921,23 @@ namespace MediaNotif
                         VerticalAlignment = VerticalAlignment.Center
                     }
                 };
-                Grid.SetColumn(prevCover, 0);
-                prevGrid.Children.Add(prevCover);
+                prevCoverGrid.Children.Add(prevCover);
+
+                var badge = SourceLogoHelper.CreateBadge(previewSource, 13, withBorder: true);
+                badge.HorizontalAlignment = HorizontalAlignment.Right;
+                badge.VerticalAlignment = VerticalAlignment.Bottom;
+                badge.Margin = new Thickness(0, 0, -2, -2);
+                prevCoverGrid.Children.Add(badge);
+
+                Grid.SetColumn(prevCoverGrid, 0);
+                prevGrid.Children.Add(prevCoverGrid);
 
                 var lineStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                var miniLogo = SourceLogoHelper.CreateBadge(previewSource, 13, withBorder: false);
+                miniLogo.Margin = new Thickness(0, 0, 6, 0);
+                miniLogo.VerticalAlignment = VerticalAlignment.Center;
+                lineStack.Children.Add(miniLogo);
+
                 lineStack.Children.Add(new TextBlock
                 {
                     Text = "Starboy",
@@ -936,13 +972,18 @@ namespace MediaNotif
                 prevGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 prevGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+                var prevCoverGrid = new Grid
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 12, 0)
+                };
+
                 var prevCover = new Border
                 {
                     Width = isClassic ? 44 : 46,
                     Height = isClassic ? 44 : 46,
                     CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(Color.FromRgb(49, 50, 68)),
-                    Margin = new Thickness(0, 0, 12, 0),
                     Child = new TextBlock
                     {
                         Text = "♫",
@@ -952,22 +993,40 @@ namespace MediaNotif
                         VerticalAlignment = VerticalAlignment.Center
                     }
                 };
-                Grid.SetColumn(prevCover, 0);
-                prevGrid.Children.Add(prevCover);
+                prevCoverGrid.Children.Add(prevCover);
+
+                var badge = SourceLogoHelper.CreateBadge(previewSource, 18, withBorder: true);
+                badge.HorizontalAlignment = HorizontalAlignment.Right;
+                badge.VerticalAlignment = VerticalAlignment.Bottom;
+                badge.Margin = new Thickness(0, 0, -3, -3);
+                prevCoverGrid.Children.Add(badge);
+
+                Grid.SetColumn(prevCoverGrid, 0);
+                prevGrid.Children.Add(prevCoverGrid);
 
                 var prevTextStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
 
-                if (isClassic)
+                var headerStack = new StackPanel
                 {
-                    prevTextStack.Children.Add(new TextBlock
-                    {
-                        Text = "NOW PLAYING",
-                        FontSize = 8.5,
-                        FontWeight = FontWeights.ExtraBold,
-                        Foreground = accentBrush,
-                        Margin = new Thickness(0, 0, 0, 2)
-                    });
-                }
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(0, 0, 0, 3),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                var headerLogo = SourceLogoHelper.CreateBadge(previewSource, 12, withBorder: false);
+                headerLogo.Margin = new Thickness(0, 0, 5, 0);
+                headerLogo.VerticalAlignment = VerticalAlignment.Center;
+                headerStack.Children.Add(headerLogo);
+
+                string srcName = SourceLogoHelper.GetSourceDisplayName(previewSource).ToUpperInvariant();
+                headerStack.Children.Add(new TextBlock
+                {
+                    Text = isClassic ? $"{srcName}  •  NOW PLAYING" : srcName,
+                    FontSize = 8.5,
+                    FontWeight = FontWeights.ExtraBold,
+                    Foreground = accentBrush,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                prevTextStack.Children.Add(headerStack);
 
                 prevTextStack.Children.Add(new TextBlock
                 {
@@ -1288,19 +1347,48 @@ namespace MediaNotif
 
             btn.MouseLeftButtonDown += (s, e) =>
             {
-                _selectedSource = tag;
-                HighlightSelectedSource();
+                ToggleSourceSelection(tag);
             };
 
             _sourceButtons[tag] = btn;
             return btn;
         }
 
-        private void HighlightSelectedSource()
+        private void ToggleSourceSelection(string tag)
         {
+            if (tag.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                _selectedSources.Clear();
+                _selectedSources.Add("All");
+            }
+            else
+            {
+                _selectedSources.Remove("All");
+                if (_selectedSources.Contains(tag))
+                {
+                    _selectedSources.Remove(tag);
+                }
+                else
+                {
+                    _selectedSources.Add(tag);
+                }
+
+                if (_selectedSources.Count == 0)
+                {
+                    _selectedSources.Add("All");
+                }
+            }
+
+            HighlightSelectedSources();
+            UpdatePreviewLayout();
+        }
+
+        private void HighlightSelectedSources()
+        {
+            bool isAll = _selectedSources.Contains("All");
             foreach (var kv in _sourceButtons)
             {
-                bool isSelected = string.Equals(kv.Key, _selectedSource, StringComparison.OrdinalIgnoreCase);
+                bool isSelected = isAll ? kv.Key.Equals("All", StringComparison.OrdinalIgnoreCase) : _selectedSources.Contains(kv.Key);
                 kv.Value.Background = new SolidColorBrush(isSelected ? Color.FromRgb(137, 180, 250) : Color.FromRgb(24, 24, 37));
                 kv.Value.BorderBrush = new SolidColorBrush(isSelected ? Color.FromRgb(137, 180, 250) : Color.FromRgb(49, 50, 68));
 
@@ -1364,12 +1452,14 @@ namespace MediaNotif
 
             // Source all button text
             if (_sourceButtons.TryGetValue("All", out var bAll) && bAll.Child is TextBlock tbAll) tbAll.Text = Loc.AllSources;
+            if (_sourceButtons.TryGetValue("MusicAssistant", out var bMass) && bMass.Child is TextBlock tbMass) tbMass.Text = Loc.MusicAssistant;
         }
 
         private void ApplyCurrentState()
         {
             SettingsManager.Current.Position = _selectedPosition;
-            SettingsManager.Current.MediaSourceFilter = _selectedSource;
+            SettingsManager.Current.MediaSources = new List<string>(_selectedSources);
+            SettingsManager.Current.MediaSourceFilter = string.Join(",", _selectedSources);
             SettingsManager.Current.Language = _selectedLanguage;
             SettingsManager.Current.Theme = _selectedTheme;
             SettingsManager.Current.DisplayDurationSeconds = _selectedDuration;
@@ -1381,6 +1471,7 @@ namespace MediaNotif
             TrayService.UpdateSourceMenuCheckmarks();
             TrayService.UpdateLanguageMenuCheckmarks();
             TrayService.UpdateDndAndCompactChecks();
+            TrayService.UpdateTrayTooltip();
         }
     }
 }

@@ -34,6 +34,20 @@ namespace MediaNotif
                 return;
             }
 
+            if (args.Any(a => a.Equals("--list-sessions", StringComparison.OrdinalIgnoreCase)))
+            {
+                var manager = GlobalSystemMediaTransportControlsSessionManager.RequestAsync().GetAwaiter().GetResult();
+                var sessions = manager.GetSessions();
+                Console.WriteLine($"Found {sessions.Count} sessions:");
+                foreach (var s in sessions)
+                {
+                    var playback = s.GetPlaybackInfo();
+                    var props = s.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
+                    Console.WriteLine($"AUMID: '{s.SourceAppUserModelId}' | Status: {playback?.PlaybackStatus} | Title: '{props?.Title}' | Artist: '{props?.Artist}'");
+                }
+                return;
+            }
+
             bool isTestMode = args.Any(a => a.Equals("--test", StringComparison.OrdinalIgnoreCase));
 
             using var mutex = new Mutex(true, "MediaNotif_SingleInstanceMutex", out bool createdNew);
@@ -76,7 +90,8 @@ namespace MediaNotif
             {
                 _wpfDispatcher?.BeginInvoke(() =>
                 {
-                    ShowDunstNotification("Starboy", "The Weeknd ft. Daft Punk", null);
+                    string testSource = SettingsManager.Current.MediaSources.FirstOrDefault(s => !s.Equals("All", StringComparison.OrdinalIgnoreCase)) ?? "YouTubeMusic";
+                    ShowDunstNotification("Starboy", "The Weeknd ft. Daft Punk", null, "", testSource);
                 });
             };
 
@@ -93,15 +108,17 @@ namespace MediaNotif
                 });
             };
 
-            TrayService.OnSourceFilterChanged += (newFilter) =>
+            TrayService.OnSourceFilterChanged += (toggledKey) =>
             {
                 _lastTrackId = string.Empty;
                 _wpfDispatcher?.BeginInvoke(() =>
                 {
                     ShowDunstNotification(
                         Loc.SourceChangedTitle,
-                        string.Format(Loc.SourceChangedBody, SettingsManager.GetFilterDisplayName(newFilter)),
-                        null
+                        string.Format(Loc.SourceChangedBody, SettingsManager.GetActiveSourcesDisplayName()),
+                        null,
+                        "",
+                        toggledKey
                     );
                 });
             };
@@ -135,11 +152,14 @@ namespace MediaNotif
             // Always show welcoming visual confirmation on startup
             _wpfDispatcher.BeginInvoke(() =>
             {
-                string filterName = SettingsManager.GetFilterDisplayName(SettingsManager.Current.MediaSourceFilter);
+                string sourcesName = SettingsManager.GetActiveSourcesDisplayName();
+                string firstSource = SettingsManager.Current.MediaSources.FirstOrDefault(s => !s.Equals("All", StringComparison.OrdinalIgnoreCase)) ?? "All";
                 ShowDunstNotification(
                     Loc.StartupNotifTitle,
-                    string.Format(Loc.StartupNotifBody, filterName),
-                    null
+                    string.Format(Loc.StartupNotifBody, sourcesName),
+                    null,
+                    "",
+                    firstSource
                 );
             });
 
@@ -284,11 +304,12 @@ namespace MediaNotif
 
                 if (string.IsNullOrWhiteSpace(title)) return false;
 
-                string trackId = $"{title}|{artist}|{album}";
+                string sourceKey = SettingsManager.DetectSourceKey(session.SourceAppUserModelId);
+                string trackId = $"{title}|{artist}|{album}|{sourceKey}";
                 if (trackId == _lastTrackId) return true; // Already displayed
 
                 _lastTrackId = trackId;
-                Log($"New Track Detected: {title} by {artist}");
+                Log($"New Track Detected: {title} by {artist} (Source: {sourceKey}, AUMID: {session.SourceAppUserModelId})");
 
                 byte[]? coverBytes = null;
                 if (media.Thumbnail != null)
@@ -310,7 +331,7 @@ namespace MediaNotif
 
                 _wpfDispatcher?.BeginInvoke(() =>
                 {
-                    ShowDunstNotification(title, artist, coverBytes, trackId);
+                    ShowDunstNotification(title, artist, coverBytes, trackId, sourceKey);
                 });
 
                 // Asynchronous retry for late-arriving artwork
@@ -358,7 +379,7 @@ namespace MediaNotif
             }
         }
 
-        private static void ShowDunstNotification(string title, string artist, byte[]? coverBytes, string trackId = "")
+        private static void ShowDunstNotification(string title, string artist, byte[]? coverBytes, string trackId = "", string sourceKey = "All")
         {
             if (SettingsManager.Current.DoNotDisturb)
             {
@@ -378,7 +399,8 @@ namespace MediaNotif
                     SettingsManager.Current.Position,
                     SettingsManager.Current.CompactMode,
                     SettingsManager.Current.Theme,
-                    trackId
+                    trackId,
+                    sourceKey
                 );
                 _currentPopup.Show();
             }
@@ -418,13 +440,13 @@ namespace MediaNotif
                     string iconPath = Path.Combine(outDir, "icon.jpg");
                     if (File.Exists(iconPath)) sampleArt = File.ReadAllBytes(iconPath);
 
-                    var captures = new (string Filename, string Title, string Artist, string Theme, bool Compact)[]
+                    var captures = new (string Filename, string Title, string Artist, string Theme, bool Compact, string Source)[]
                     {
-                        ("theme_auraneo.png", "Starboy", "The Weeknd ft. Daft Punk", "AuraNeo", false),
-                        ("theme_classicdunst.png", "Midnight City", "M83 — Hurry Up, We're Dreaming", "ClassicDunst", false),
-                        ("theme_nordicfrost.png", "Resonance", "HOME — Odyssey", "NordicFrost", false),
-                        ("theme_midnightamoled.png", "After Dark", "Mr.Kitty — Time", "MidnightAmoled", false),
-                        ("theme_compact.png", "Blinding Lights", "The Weeknd", "AuraNeo", true)
+                        ("theme_auraneo.png", "Starboy", "The Weeknd ft. Daft Punk", "AuraNeo", false, "YouTubeMusic"),
+                        ("theme_classicdunst.png", "Midnight City", "M83 — Hurry Up, We're Dreaming", "ClassicDunst", false, "MusicAssistant"),
+                        ("theme_nordicfrost.png", "Resonance", "HOME — Odyssey", "NordicFrost", false, "Spotify"),
+                        ("theme_midnightamoled.png", "After Dark", "Mr.Kitty — Time", "MidnightAmoled", false, "YouTubeMusic"),
+                        ("theme_compact.png", "Blinding Lights", "The Weeknd", "AuraNeo", true, "MusicAssistant")
                     };
 
                     foreach (var item in captures)
@@ -437,7 +459,9 @@ namespace MediaNotif
                             420,
                             "TopRight",
                             item.Compact,
-                            item.Theme
+                            item.Theme,
+                            "",
+                            item.Source
                         );
                         SaveWindowAsPng(notif, Path.Combine(outDir, item.Filename));
                     }
@@ -508,6 +532,7 @@ namespace MediaNotif
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
         public string CurrentTrackId { get; }
+        private readonly string _sourceKey;
         private readonly double _duration;
         private readonly string _position;
         private readonly bool _isCompact;
@@ -525,9 +550,11 @@ namespace MediaNotif
             string position,
             bool isCompact,
             string theme,
-            string trackId = "")
+            string trackId = "",
+            string sourceKey = "All")
         {
             CurrentTrackId = trackId;
+            _sourceKey = sourceKey;
             _duration = duration;
             _position = position;
             _isCompact = isCompact;
@@ -636,14 +663,32 @@ namespace MediaNotif
             {
                 Width = coverSize,
                 Height = coverSize,
-                Margin = new Thickness(0, 0, _isCompact ? 10 : 16, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             SetCoverContent(coverBytes);
 
-            Grid.SetColumn(_coverContainer, 0);
-            grid.Children.Add(_coverContainer);
+            var coverWrapper = new Grid
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, _isCompact ? 10 : 16, 0)
+            };
+            coverWrapper.Children.Add(_coverContainer);
+
+            // Overlapping source logo badge on bottom-right corner of cover
+            if (!string.IsNullOrEmpty(_sourceKey) && !_sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                double badgeSize = _isCompact ? 13 : 20;
+                var badge = SourceLogoHelper.CreateBadge(_sourceKey, badgeSize, withBorder: true);
+                badge.HorizontalAlignment = HorizontalAlignment.Right;
+                badge.VerticalAlignment = VerticalAlignment.Bottom;
+                badge.Margin = new Thickness(0, 0, _isCompact ? -2 : -4, _isCompact ? -2 : -4);
+                coverWrapper.Children.Add(badge);
+            }
+
+            Grid.SetColumn(coverWrapper, 0);
+            grid.Children.Add(coverWrapper);
 
             if (_isCompact)
             {
@@ -653,6 +698,14 @@ namespace MediaNotif
                     VerticalAlignment = VerticalAlignment.Center,
                     MaxWidth = targetWidth - 50
                 };
+
+                if (!string.IsNullOrEmpty(_sourceKey) && !_sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase))
+                {
+                    var miniLogo = SourceLogoHelper.CreateBadge(_sourceKey, 13, withBorder: false);
+                    miniLogo.Margin = new Thickness(0, 0, 6, 0);
+                    miniLogo.VerticalAlignment = VerticalAlignment.Center;
+                    lineStack.Children.Add(miniLogo);
+                }
 
                 var titleBlock = new TextBlock
                 {
@@ -697,16 +750,45 @@ namespace MediaNotif
                     MaxWidth = targetWidth - 30
                 };
 
-                if (isClassic)
+                var headerStack = new StackPanel
                 {
-                    textStack.Children.Add(new TextBlock
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(0, 0, 0, isClassic ? 4 : 3),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                if (!string.IsNullOrEmpty(_sourceKey) && !_sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase))
+                {
+                    var headerLogo = SourceLogoHelper.CreateBadge(_sourceKey, 12, withBorder: false);
+                    headerLogo.Margin = new Thickness(0, 0, 5, 0);
+                    headerLogo.VerticalAlignment = VerticalAlignment.Center;
+                    headerStack.Children.Add(headerLogo);
+
+                    string srcName = SourceLogoHelper.GetSourceDisplayName(_sourceKey).ToUpperInvariant();
+                    headerStack.Children.Add(new TextBlock
+                    {
+                        Text = isClassic ? $"{srcName}  •  NOW PLAYING" : srcName,
+                        FontSize = 9.5,
+                        FontWeight = FontWeights.ExtraBold,
+                        Foreground = accentBrush,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                }
+                else if (isClassic)
+                {
+                    headerStack.Children.Add(new TextBlock
                     {
                         Text = "NOW PLAYING",
                         FontSize = 9.5,
                         FontWeight = FontWeights.ExtraBold,
                         Foreground = accentBrush,
-                        Margin = new Thickness(0, 0, 0, 4)
+                        VerticalAlignment = VerticalAlignment.Center
                     });
+                }
+
+                if (headerStack.Children.Count > 0)
+                {
+                    textStack.Children.Add(headerStack);
                 }
 
                 var titleBlock = new TextBlock

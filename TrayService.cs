@@ -25,6 +25,7 @@ namespace MediaNotif
         {
             ("All", "🌐  All"),
             ("YouTubeMusic", "🎵  YouTube Music (Desktop)"),
+            ("MusicAssistant", "🎼  Music Assistant"),
             ("Spotify", "🟢  Spotify"),
             ("Zen", "🌀  Zen Browser"),
             ("Chrome", "🔴  Google Chrome"),
@@ -268,8 +269,7 @@ namespace MediaNotif
 
         public static void SelectSource(string key)
         {
-            SettingsManager.Current.MediaSourceFilter = key;
-            SettingsManager.Save();
+            SettingsManager.ToggleSource(key);
             UpdateSourceMenuCheckmarks();
             UpdateTrayTooltip();
 
@@ -289,12 +289,11 @@ namespace MediaNotif
 
         public static void UpdateSourceMenuCheckmarks()
         {
-            string current = SettingsManager.Current.MediaSourceFilter;
             foreach (var item in _sourceMenuItems)
             {
                 if (item.Tag is string key)
                 {
-                    item.Checked = string.Equals(key, current, StringComparison.OrdinalIgnoreCase);
+                    item.Checked = SettingsManager.IsSourceEnabled(key);
                 }
             }
         }
@@ -320,10 +319,10 @@ namespace MediaNotif
         public static void UpdateTrayTooltip()
         {
             if (_trayIcon == null) return;
-            string filterName = SettingsManager.GetFilterDisplayName(SettingsManager.Current.MediaSourceFilter);
+            string sourcesName = SettingsManager.GetActiveSourcesDisplayName();
             string dnd = SettingsManager.Current.DoNotDisturb ? " [🔕 Muted]" : "";
-            string tip = $"MediaNotif{dnd}\nSource: {filterName}";
-            if (tip.Length > 63) tip = tip.Substring(0, 63);
+            string tip = $"MediaNotif{dnd}\nSources: {sourcesName}";
+            if (tip.Length > 63) tip = tip.Substring(0, 60) + "...";
             _trayIcon.Text = tip;
         }
 

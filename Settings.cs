@@ -13,7 +13,8 @@ namespace MediaNotif
         public bool StartWithWindows { get; set; } = false;
         public int MarginX { get; set; } = 20;
         public int MarginY { get; set; } = 24;
-        public string MediaSourceFilter { get; set; } = "All"; // All, YouTubeMusic, Spotify, Zen, Chrome, Firefox, Edge, Brave
+        public string MediaSourceFilter { get; set; } = "All"; // Kept for backward compatibility
+        public System.Collections.Generic.List<string> MediaSources { get; set; } = new System.Collections.Generic.List<string> { "All" };
         public string Language { get; set; } = "fr"; // "fr" or "en"
         public string Theme { get; set; } = "AuraNeo"; // AuraNeo, ClassicDunst, NordicFrost, MidnightAmoled
         public bool DoNotDisturb { get; set; } = false;
@@ -34,8 +35,8 @@ namespace MediaNotif
         public static string ThemeSubtitle => Get("Choisissez le style graphique des notifications", "Choose popup graphic & color aesthetic");
         public static string PositionTitle => Get("POSITION À L'ÉCRAN", "SCREEN POSITION");
         public static string PositionSubtitle => Get("Choisissez le coin d'apparition de la popup", "Choose where the popup appears");
-        public static string SourceTitle => Get("SOURCE AUDIO", "AUDIO SOURCE");
-        public static string SourceSubtitle => Get("Filtrer l'application à écouter (YouTube Music, Spotify, Zen...)", "Filter which application to monitor (YouTube Music, Spotify, Zen...)");
+        public static string SourceTitle => Get("SOURCES AUDIO", "AUDIO SOURCES");
+        public static string SourceSubtitle => Get("Sélectionnez les applications à écouter (YouTube Music, Music Assistant, Spotify...)", "Select which applications to monitor (YouTube Music, Music Assistant, Spotify...)");
         public static string DimensionsTitle => Get("DIMENSIONS & DURÉE", "SIZE & DURATION");
         public static string DimensionsSubtitle => Get("Ajustez la taille et le temps d'affichage", "Adjust notification size and display time");
         public static string DurationLabel => Get("Durée d'affichage", "Display Duration");
@@ -60,13 +61,14 @@ namespace MediaNotif
         public static string Quit => Get("🚪  Quitter", "🚪  Quit");
         public static string Settings => Get("⚙️  Paramètres...", "⚙️  Settings...");
         public static string TestNotif => Get("🎵  Tester la notification", "🎵  Test Notification");
-        public static string AudioSource => Get("🎧  Source audio", "🎧  Audio Source");
+        public static string AudioSource => Get("🎧  Sources audio", "🎧  Audio Sources");
         public static string ThemeMenu => Get("🎨  Thème", "🎨  Theme");
         public static string LanguageMenu => Get("🌐  Langue", "🌐  Language");
         public static string AllSources => Get("🌐  Toutes les sources", "🌐  All Sources");
+        public static string MusicAssistant => "🎼  Music Assistant";
         public static string StartupNotifTitle => Get("MediaNotif est actif !", "MediaNotif is active!");
-        public static string StartupNotifBody => Get("Source : {0} • Clic droit sur l'icône ♫", "Source: {0} • Right-click on ♫ icon");
-        public static string SourceChangedTitle => Get("Source audio modifiée", "Audio Source Changed");
+        public static string StartupNotifBody => Get("Sources : {0} • Clic droit sur l'icône ♫", "Sources: {0} • Right-click on ♫ icon");
+        public static string SourceChangedTitle => Get("Sources audio modifiées", "Audio Sources Changed");
         public static string SourceChangedBody => Get("Écoute active : {0}", "Active listening: {0}");
         public static string ThemeChangedTitle => Get("Thème visuel modifié", "Visual Theme Changed");
         public static string ThemeChangedBody => Get("Thème actif : {0}", "Active theme: {0}");
@@ -98,18 +100,44 @@ namespace MediaNotif
 
     public static class SettingsManager
     {
-        public static bool MatchesSourceFilter(string? sourceAppId)
+        public static string DetectSourceKey(string? sourceAppId)
         {
-            string filter = Current.MediaSourceFilter;
-            if (string.IsNullOrWhiteSpace(filter) || filter.Equals("All", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(sourceAppId))
+                return "All";
+
+            string id = sourceAppId.ToLowerInvariant();
+            if (id.Contains("music-assistant") || id.Contains("musicassistant") || id.Contains("music_assistant"))
+                return "MusicAssistant";
+            if (id.Contains("youtube-music") || id.Contains("youtubemusic"))
+                return "YouTubeMusic";
+            if (id.Contains("spotify"))
+                return "Spotify";
+            if (id.Contains("zen"))
+                return "Zen";
+            if (id.Contains("chrome"))
+                return "Chrome";
+            if (id.Contains("firefox"))
+                return "Firefox";
+            if (id.Contains("edge") || id.Contains("msedge"))
+                return "Edge";
+            if (id.Contains("brave"))
+                return "Brave";
+
+            return "All";
+        }
+
+        public static bool MatchesSource(string? sourceAppId, string sourceKey)
+        {
+            if (string.IsNullOrWhiteSpace(sourceKey) || sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase))
                 return true;
 
             if (string.IsNullOrWhiteSpace(sourceAppId))
                 return false;
 
             string id = sourceAppId.ToLowerInvariant();
-            return filter switch
+            return sourceKey switch
             {
+                "MusicAssistant" => id.Contains("music-assistant") || id.Contains("musicassistant") || id.Contains("music_assistant"),
                 "YouTubeMusic" => id.Contains("youtube-music") || id.Contains("youtubemusic"),
                 "Spotify" => id.Contains("spotify"),
                 "Zen" => id.Contains("zen"),
@@ -117,14 +145,79 @@ namespace MediaNotif
                 "Firefox" => id.Contains("firefox"),
                 "Edge" => id.Contains("edge") || id.Contains("msedge"),
                 "Brave" => id.Contains("brave"),
-                _ => id.Contains(filter.ToLowerInvariant())
+                _ => id.Contains(sourceKey.ToLowerInvariant())
             };
+        }
+
+        public static bool MatchesSourceFilter(string? sourceAppId)
+        {
+            var sources = Current.MediaSources;
+            if (sources == null || sources.Count == 0 || System.Linq.Enumerable.Any(sources, s => s.Equals("All", StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            if (string.IsNullOrWhiteSpace(sourceAppId))
+                return false;
+
+            return System.Linq.Enumerable.Any(sources, s => MatchesSource(sourceAppId, s));
+        }
+
+        public static bool IsSourceEnabled(string sourceKey)
+        {
+            var sources = Current.MediaSources;
+            if (sources == null || sources.Count == 0)
+                return sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase);
+
+            if (sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase))
+                return System.Linq.Enumerable.Any(sources, s => s.Equals("All", StringComparison.OrdinalIgnoreCase));
+
+            return System.Linq.Enumerable.Contains(sources, sourceKey, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static void SetSource(string sourceKey)
+        {
+            Current.MediaSources.Clear();
+            Current.MediaSources.Add(sourceKey);
+            Current.MediaSourceFilter = sourceKey;
+            Save();
+        }
+
+        public static void ToggleSource(string sourceKey)
+        {
+            if (sourceKey.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                Current.MediaSources.Clear();
+                Current.MediaSources.Add("All");
+                Current.MediaSourceFilter = "All";
+                Save();
+                return;
+            }
+
+            Current.MediaSources.RemoveAll(s => s.Equals("All", StringComparison.OrdinalIgnoreCase));
+
+            int idx = Current.MediaSources.FindIndex(s => s.Equals(sourceKey, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+            {
+                Current.MediaSources.RemoveAt(idx);
+            }
+            else
+            {
+                Current.MediaSources.Add(sourceKey);
+            }
+
+            if (Current.MediaSources.Count == 0)
+            {
+                Current.MediaSources.Add("All");
+            }
+
+            Current.MediaSourceFilter = string.Join(",", Current.MediaSources);
+            Save();
         }
 
         public static string GetFilterDisplayName(string filter)
         {
             return filter switch
             {
+                "MusicAssistant" => "Music Assistant",
                 "YouTubeMusic" => "YouTube Music",
                 "Spotify" => "Spotify",
                 "Zen" => "Zen Browser",
@@ -134,6 +227,16 @@ namespace MediaNotif
                 "Brave" => "Brave Browser",
                 _ => Loc.AllSources
             };
+        }
+
+        public static string GetActiveSourcesDisplayName()
+        {
+            var sources = Current.MediaSources;
+            if (sources == null || sources.Count == 0 || System.Linq.Enumerable.Any(sources, s => s.Equals("All", StringComparison.OrdinalIgnoreCase)))
+                return Loc.AllSources;
+
+            var names = System.Linq.Enumerable.Select(sources, GetFilterDisplayName);
+            return string.Join(", ", names);
         }
 
         public static string GetThemeDisplayName(string theme)
@@ -170,6 +273,23 @@ namespace MediaNotif
                 }
             }
             catch { }
+
+            // Ensure MediaSources is initialized
+            if (Current.MediaSources == null || Current.MediaSources.Count == 0)
+            {
+                Current.MediaSources = new System.Collections.Generic.List<string>();
+                if (!string.IsNullOrWhiteSpace(Current.MediaSourceFilter))
+                {
+                    foreach (var part in Current.MediaSourceFilter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    {
+                        Current.MediaSources.Add(part);
+                    }
+                }
+                if (Current.MediaSources.Count == 0)
+                {
+                    Current.MediaSources.Add("All");
+                }
+            }
 
             // Sync startup registry state
             Current.StartWithWindows = CheckStartupRegistry();
